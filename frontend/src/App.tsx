@@ -1,19 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Upload, Database, ShieldAlert, BarChart2, CheckCircle, Loader, Download } from 'lucide-react';
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Upload, Database, ShieldAlert, BarChart2, CheckCircle, Loader, Download, Cpu, ArrowRight, ShieldCheck, Activity } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 
-// API base URL
-const API_URL = 'http://127.0.0.up:8000/api/dataset'; // We will use localhost
+const API_BASE = 'http://127.0.0.1:8000/api';
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<'home' | 'dataset' | 'model'>('home');
+
+  return (
+    <>
+      <nav className="navbar">
+        <div className="navbar-brand" onClick={() => setCurrentView('home')}>
+          <ShieldCheck size={28} color="var(--primary)" />
+          FairData AI
+        </div>
+        <div className="nav-links">
+          <button className={`nav-link ${currentView === 'home' ? 'active' : ''}`} onClick={() => setCurrentView('home')}>Home</button>
+          <button className={`nav-link ${currentView === 'dataset' ? 'active' : ''}`} onClick={() => setCurrentView('dataset')}>Dataset Bias</button>
+          <button className={`nav-link ${currentView === 'model' ? 'active' : ''}`} onClick={() => setCurrentView('model')}>Model Bias</button>
+        </div>
+      </nav>
+
+      <div className="app-container">
+        {currentView === 'home' && <HomeView setView={setCurrentView} />}
+        {currentView === 'dataset' && <DatasetBiasView />}
+        {currentView === 'model' && <ModelBiasView />}
+      </div>
+    </>
+  );
+}
+
+function HomeView({ setView }: { setView: (view: 'dataset' | 'model') => void }) {
+  return (
+    <div className="hero-section">
+      <div className="hero-badge">Next-Gen Fairness Platform</div>
+      <h1 className="hero-title">
+        Detect & Mitigate <span>AI Biases</span> in Seconds
+      </h1>
+      <p className="hero-subtitle">
+        Ensure your machine learning models and datasets are fair, unbiased, and compliant with modern ethical standards. Run automated audits and apply fixes with a single click.
+      </p>
+      
+      <div className="hero-buttons">
+        <button className="btn btn-large" onClick={() => setView('dataset')}>
+          <Database size={20} /> Analyze Dataset
+        </button>
+        <button className="btn btn-secondary btn-large" onClick={() => setView('model')}>
+          <Cpu size={20} /> Audit AI Model
+        </button>
+      </div>
+
+      <div style={{ marginTop: '5rem', display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+        <div className="card" style={{ flex: 1, textAlign: 'left', background: 'rgba(27, 30, 36, 0.4)' }}>
+          <Activity size={32} color="var(--accent)" style={{ marginBottom: '1rem' }} />
+          <h3 style={{ marginTop: 0 }}>Dataset Audits</h3>
+          <p style={{ color: 'var(--text-muted)' }}>Upload CSV/JSON files to detect demographic disparities and apply balancing techniques automatically.</p>
+        </div>
+        <div className="card" style={{ flex: 1, textAlign: 'left', background: 'rgba(27, 30, 36, 0.4)' }}>
+          <ShieldAlert size={32} color="var(--warning)" style={{ marginBottom: '1rem' }} />
+          <h3 style={{ marginTop: 0 }}>Model Evaluation</h3>
+          <p style={{ color: 'var(--text-muted)' }}>Provide an endpoint or URL for your AI model to simulate fairness stress tests and get a comprehensive scorecard.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DatasetBiasView() {
   const [step, setStep] = useState<'upload' | 'configure' | 'analyzing' | 'dashboard' | 'mitigation'>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [datasetInfo, setDatasetInfo] = useState<any>(null);
-  
   const [targetCol, setTargetCol] = useState('');
   const [sensitiveCol, setSensitiveCol] = useState('');
-  
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [mitigationStrategies, setMitigationStrategies] = useState<string[]>([]);
   const [isMitigating, setIsMitigating] = useState(false);
@@ -28,7 +87,7 @@ export default function App() {
 
     try {
       setStep('analyzing');
-      const res = await axios.post('http://127.0.0.1:8000/api/dataset/upload', formData, {
+      const res = await axios.post(`${API_BASE}/dataset/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setDatasetInfo(res.data);
@@ -47,7 +106,7 @@ export default function App() {
     
     try {
       setStep('analyzing');
-      const res = await axios.post('http://127.0.0.1:8000/api/dataset/analyze', {
+      const res = await axios.post(`${API_BASE}/dataset/analyze`, {
         dataset_id: "current_dataset",
         target_column: targetCol,
         sensitive_column: sensitiveCol
@@ -68,7 +127,7 @@ export default function App() {
     
     try {
       setIsMitigating(true);
-      const res = await axios.post('http://127.0.0.1:8000/api/dataset/mitigate', {
+      const res = await axios.post(`${API_BASE}/dataset/mitigate`, {
         dataset_id: "current_dataset",
         target_column: targetCol,
         sensitive_column: sensitiveCol,
@@ -76,7 +135,7 @@ export default function App() {
       });
       setAnalysisData(res.data);
       alert("Mitigation applied successfully!");
-      setStep('dashboard'); // Stay on dashboard to see new stats
+      setStep('dashboard');
     } catch (e: any) {
       alert("Error mitigating: " + (e.response?.data?.detail || e.message));
     } finally {
@@ -85,15 +144,15 @@ export default function App() {
   };
 
   const downloadDataset = () => {
-    window.open(`http://127.0.0.1:8000/api/dataset/download/current_dataset_mitigated`, "_blank");
+    window.open(`${API_BASE}/dataset/download/current_dataset_mitigated`, "_blank");
   };
 
   return (
-    <div className="app-container">
+    <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1>FairData AI</h1>
-          <p>Dataset Bias Detection & Mitigation Platform</p>
+          <h2>Dataset Bias Detection</h2>
+          <p>Analyze and mitigate biases in your raw data.</p>
         </div>
         <div>
           {step === 'dashboard' && analysisData?.mitigated_dataset_id && (
@@ -232,23 +291,6 @@ export default function App() {
              )}
           </div>
 
-          {/* Dummy Charts to illustrate visually */}
-          <div className="col-span-12 card">
-            <h3 style={{ marginTop: 0 }}>Group Demographics ({sensitiveCol})</h3>
-            <div style={{ height: '300px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                 {/* Recharts simple bar chart of base rates */}
-                 <BarChart data={Object.entries(analysisData.fairness?.group_rates || {}).map(([k,v]) => ({ name: k, value: (v as number)*100 }))}>
-                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                   <XAxis dataKey="name" stroke="#94a3b8" />
-                   <YAxis dataKey="value" stroke="#94a3b8" label={{ value: 'Positive Rate %', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
-                   <RechartsTooltip contentStyle={{ backgroundColor: '#1b1e24', border: '1px solid #334155' }} />
-                   <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                 </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
           {/* Mitigation Section */}
           <div id="mitigation-section" className="col-span-12 card" style={{ marginTop: '2rem' }}>
              <h3 style={{ marginTop: 0 }}>Bias Mitigation (Fix Engine)</h3>
@@ -274,31 +316,152 @@ export default function App() {
                       <label htmlFor="m2">Oversampling (Minority Class)</label>
                    </div>
                 </div>
-                
-                <div style={{ background: 'var(--bg-dark)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                   <h4>Feature Adjustment</h4>
-                   <div className="checkbox-group">
-                      <input type="checkbox" id="m3" onChange={e => {
-                         const v = 'Drop Proxy Features';
-                         setMitigationStrategies(prev => e.target.checked ? [...prev, v] : prev.filter(x => x !== v));
-                      }}/>
-                      <label htmlFor="m3">Drop Proxy Features</label>
-                   </div>
-                   <div className="checkbox-group">
-                      <input type="checkbox" id="m4" onChange={e => {
-                         const v = 'Outlier Removal';
-                         setMitigationStrategies(prev => e.target.checked ? [...prev, v] : prev.filter(x => x !== v));
-                      }}/>
-                      <label htmlFor="m4">Outlier Removal</label>
-                   </div>
-                </div>
              </div>
              
              <button className="btn" onClick={applyMitigation} disabled={isMitigating}>
                 {isMitigating ? <><Loader size={18} className="spin" /> Applying fixes...</> : 'Apply Selected Fixes'}
              </button>
           </div>
-          
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModelBiasView() {
+  const [url, setUrl] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanLogs, setScanLogs] = useState<string[]>([]);
+  const [result, setResult] = useState<any>(null);
+
+  const startScan = async () => {
+    if (!url.startsWith('http')) {
+      alert("Please enter a valid URL starting with http:// or https://");
+      return;
+    }
+    
+    setIsScanning(true);
+    setResult(null);
+    setScanLogs(["Initializing secure connection...", `Connecting to ${url}...`]);
+    
+    // Simulate real-time logs
+    let logCount = 0;
+    const interval = setInterval(() => {
+      logCount++;
+      if (logCount === 1) setScanLogs(l => [...l, "Sending fairness test prompts (1/3)..."]);
+      if (logCount === 2) setScanLogs(l => [...l, "Analyzing text generation sentiment (2/3)..."]);
+      if (logCount === 3) setScanLogs(l => [...l, "Computing counterfactual fairness metrics (3/3)..."]);
+    }, 600);
+
+    try {
+      const res = await axios.post(`${API_BASE}/model/analyze-url`, { model_url: url });
+      clearInterval(interval);
+      setScanLogs(l => [...l, "Scan complete."]);
+      setResult(res.data);
+    } catch (e: any) {
+      clearInterval(interval);
+      setScanLogs(l => [...l, "Error during scan: " + (e.response?.data?.detail || e.message)]);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  return (
+    <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+      <header className="header">
+        <h2>AI Model Bias Audit</h2>
+        <p>Test an external AI model by providing its URL/Endpoint.</p>
+      </header>
+
+      {!result && (
+        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+          <div className="url-input-container">
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Cpu size={24} color="var(--primary)" /> Endpoint URL
+            </h3>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <input 
+                type="text" 
+                className="url-input" 
+                placeholder="https://api.huggingface.co/models/your-model" 
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                disabled={isScanning}
+              />
+              <button className="btn" onClick={startScan} disabled={isScanning || !url}>
+                {isScanning ? <Loader className="spin" size={20} /> : <ArrowRight size={20} />}
+              </button>
+            </div>
+            
+            {isScanning && (
+              <div className="mock-terminal">
+                {scanLogs.map((log, i) => (
+                  <div key={i} className="pulse-animation" style={{ animationDelay: `${i * 0.2}s` }}>
+                    &gt; {log}
+                  </div>
+                ))}
+                <span className="pulse-animation">_</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="dashboard-grid" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+          <div className="col-span-12 card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+             <div>
+               <div className="stat-label">Scanned Endpoint</div>
+               <div style={{ fontFamily: 'monospace', fontSize: '1.1rem', marginTop: '0.5rem' }}>{result.url_scanned}</div>
+             </div>
+             <button className="btn btn-secondary" onClick={() => setResult(null)}>New Scan</button>
+          </div>
+
+          <div className="col-span-4 card">
+            <h3 style={{ marginTop: 0 }}>Model Fairness Score</h3>
+            <div className="fairness-score-container">
+              <div className={`score-circle ${result.score > 90 ? 'score-good' : result.score > 70 ? 'score-medium' : 'score-bad'}`}>
+                {result.score}
+              </div>
+              <div className="stat-label">
+                 Risk Level: <span className={`badge badge-${result.risk_level.toLowerCase()}`}>{result.risk_level}</span>
+              </div>
+              <p style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '1rem' }}>
+                 Prompts Evaluated: {result.prompts_tested}
+              </p>
+            </div>
+          </div>
+
+          <div className="col-span-8 card table-container">
+             <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+               <ShieldAlert size={20} color="var(--warning)" /> Audit Findings
+             </h3>
+             {result.biases.length === 0 ? (
+               <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--accent)' }}>
+                 <CheckCircle size={40} style={{ marginBottom: '1rem' }} />
+                 <p>No systematic biases detected in model outputs.</p>
+               </div>
+             ) : (
+               <table className="table">
+                 <thead>
+                   <tr>
+                     <th>Detected Bias</th>
+                     <th>Severity</th>
+                     <th>Context/Explanation</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {result.biases.map((b: any, i: number) => (
+                     <tr key={i}>
+                       <td style={{ fontWeight: 600 }}>{b.type}</td>
+                       <td><span className={`badge badge-${b.severity.toLowerCase()}`}>{b.severity}</span></td>
+                       <td style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{b.explanation}</td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             )}
+          </div>
         </div>
       )}
     </div>

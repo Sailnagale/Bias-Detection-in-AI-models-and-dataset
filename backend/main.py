@@ -131,3 +131,42 @@ def download_dataset(dataset_id: str):
         headers={"Content-Disposition": f"attachment; filename={dataset_id}.csv"}
     )
 
+class ModelUrlRequest(BaseModel):
+    model_url: str
+
+import asyncio
+import random
+
+@app.post("/api/model/analyze-url")
+async def analyze_model_url(req: ModelUrlRequest):
+    if not req.model_url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid URL provided.")
+    
+    # Simulate scanning time
+    await asyncio.sleep(2)
+    
+    # Generate mock results
+    score = random.randint(55, 88)
+    risk_level = "High" if score < 70 else ("Medium" if score < 85 else "Low")
+    
+    biases = []
+    if score < 85:
+        biases.append({
+            "type": "Gender Bias in Output",
+            "severity": "High" if score < 70 else "Medium",
+            "explanation": "The model frequently assumes male pronouns for neutral professions (e.g., 'doctor', 'engineer')."
+        })
+    if score < 75:
+        biases.append({
+            "type": "Racial Sentiment Disparity",
+            "severity": "High",
+            "explanation": "Text generated for minority groups has slightly lower average sentiment scores compared to majority groups."
+        })
+        
+    return {
+        "score": score,
+        "risk_level": risk_level,
+        "biases": biases,
+        "prompts_tested": 150,
+        "url_scanned": req.model_url
+    }
